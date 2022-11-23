@@ -77,4 +77,50 @@ class ChirpTest extends TestCase
             ->get(route('chirps.index'))
             ->assertSee('Test chirp message');
     }
+
+    public function test_chirps_can_be_updated()
+    {
+        $user = User::factory()->create();
+
+        $chirp = $user->chirps()->create([
+            'message' => 'Test chirp message'
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('chirps.update', $chirp), [
+                'message' => 'Updated chirp message'
+            ])
+            ->assertRedirect(route('chirps.index'));
+
+        $this->assertDatabaseCount(Chirp::class, 1);
+
+        $this->assertDatabaseHas(Chirp::class, [
+            'user_id' => $user->id,
+            'message' => 'Updated chirp message',
+        ]);
+    }
+
+    public function test_chirp_can_only_be_updated_by_owner()
+    {
+        $authorisedChirper = User::factory()->create();
+
+        $chirp = $authorisedChirper->chirps()->create([
+            'message' => 'Test chirp message'
+        ]);
+
+        $unauthorisedChirper = User::factory()->create();
+
+        $this->actingAs($unauthorisedChirper)
+            ->put(route('chirps.update', $chirp), [
+                'message' => 'Updated chirp message'
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount(Chirp::class, 1);
+
+        $this->assertDatabaseHas(Chirp::class, [
+            'user_id' => $authorisedChirper->id,
+            'message' => 'Test chirp message',
+        ]);
+    }
 }
