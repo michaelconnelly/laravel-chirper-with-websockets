@@ -2,10 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Events\ChirpCreated;
+use App\Listeners\SendChirpCreatedNotifications;
 use App\Models\Chirp;
 use App\Models\User;
-use Tests\TestCase;
+use App\Notifications\NewChirp;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
 
 class ChirpTest extends TestCase
 {
@@ -35,7 +40,7 @@ class ChirpTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('chirps.store'), [
-                'message' => 'Test Chirp Message'
+                'message' => 'Test Chirp Message',
             ])
             ->assertRedirect(route('chirps.index'));
 
@@ -45,7 +50,7 @@ class ChirpTest extends TestCase
 
         $this->assertDatabaseHas(Chirp::class, [
             'user_id' => $user->id,
-            'message' => 'Test Chirp Message'
+            'message' => 'Test Chirp Message',
         ]);
     }
 
@@ -54,7 +59,7 @@ class ChirpTest extends TestCase
         $user = User::factory()->create();
 
         $user->chirps()->create([
-            'message' => 'Test chirp message'
+            'message' => 'Test chirp message',
         ]);
 
         $this->actingAs($user)
@@ -70,7 +75,7 @@ class ChirpTest extends TestCase
         $user = User::factory()->create();
 
         $user->chirps()->create([
-            'message' => 'Test chirp message'
+            'message' => 'Test chirp message',
         ]);
 
         $this->actingAs($user)
@@ -83,12 +88,12 @@ class ChirpTest extends TestCase
         $user = User::factory()->create();
 
         $chirp = $user->chirps()->create([
-            'message' => 'Test chirp message'
+            'message' => 'Test chirp message',
         ]);
 
         $this->actingAs($user)
             ->put(route('chirps.update', $chirp), [
-                'message' => 'Updated chirp message'
+                'message' => 'Updated chirp message',
             ])
             ->assertRedirect(route('chirps.index'));
 
@@ -105,14 +110,14 @@ class ChirpTest extends TestCase
         $authorisedChirper = User::factory()->create();
 
         $chirp = $authorisedChirper->chirps()->create([
-            'message' => 'Test chirp message'
+            'message' => 'Test chirp message',
         ]);
 
         $unauthorisedChirper = User::factory()->create();
 
         $this->actingAs($unauthorisedChirper)
             ->put(route('chirps.update', $chirp), [
-                'message' => 'Updated chirp message'
+                'message' => 'Updated chirp message',
             ])
             ->assertForbidden();
 
@@ -129,7 +134,7 @@ class ChirpTest extends TestCase
         $user = User::factory()->create();
 
         $chirp = $user->chirps()->create([
-            'message' => 'Test chirp message'
+            'message' => 'Test chirp message',
         ]);
 
         $this->actingAs($user)
@@ -149,7 +154,7 @@ class ChirpTest extends TestCase
         $authorisedChirper = User::factory()->create();
 
         $chirp = $authorisedChirper->chirps()->create([
-            'message' => 'Test chirp message'
+            'message' => 'Test chirp message',
         ]);
 
         $unauthorisedChirper = User::factory()->create();
@@ -164,5 +169,45 @@ class ChirpTest extends TestCase
             'user_id' => $authorisedChirper->id,
             'message' => 'Test chirp message',
         ]);
+    }
+
+    public function test_event_is_dispatched_when_chirp_created()
+    {
+        Event::fake();
+
+        $chirper = User::factory()->create();
+
+        $chirp = $chirper->chirps()->create([
+            'message' => 'Test chirp message',
+        ]);
+
+        Event::assertDispatched(ChirpCreated::class);
+    }
+
+    public function test_send_chirp_created_notifications_listens_for_chirp_created_event()
+    {
+        Event::fake();
+
+        Event::assertListening(
+            ChirpCreated::class,
+            SendChirpCreatedNotifications::class
+        );
+    }
+
+    public function test_new_chirp_notification_is_sent_when_chirp_created_event_is_dispatched()
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $secondUser = User::factory()->create();
+
+        $chirp = $user->chirps()->create([
+            'message' => 'Chirp Message',
+        ]);
+
+        (new SendChirpCreatedNotifications())->handle(new ChirpCreated($chirp));
+
+        Notification::assertSentTo($secondUser, NewChirp::class);
     }
 }
