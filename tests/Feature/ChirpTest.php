@@ -123,4 +123,46 @@ class ChirpTest extends TestCase
             'message' => 'Test chirp message',
         ]);
     }
+
+    public function test_chirps_can_be_deleted()
+    {
+        $user = User::factory()->create();
+
+        $chirp = $user->chirps()->create([
+            'message' => 'Test chirp message'
+        ]);
+
+        $this->actingAs($user)
+            ->delete(route('chirps.destroy', $chirp))
+            ->assertRedirect(route('chirps.index'));
+
+        $this->assertDatabaseCount(Chirp::class, 0);
+
+        $this->assertDatabaseMissing(Chirp::class, [
+            'user_id' => $user->id,
+            'message' => 'Updated chirp message',
+        ]);
+    }
+
+    public function test_chirp_can_only_be_deleted_by_owner()
+    {
+        $authorisedChirper = User::factory()->create();
+
+        $chirp = $authorisedChirper->chirps()->create([
+            'message' => 'Test chirp message'
+        ]);
+
+        $unauthorisedChirper = User::factory()->create();
+
+        $this->actingAs($unauthorisedChirper)
+            ->delete(route('chirps.destroy', $chirp))
+            ->assertForbidden();
+
+        $this->assertDatabaseCount(Chirp::class, 1);
+
+        $this->assertDatabaseHas(Chirp::class, [
+            'user_id' => $authorisedChirper->id,
+            'message' => 'Test chirp message',
+        ]);
+    }
 }
