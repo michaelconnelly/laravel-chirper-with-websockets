@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Chirp;
 use App\Models\User;
 use Tests\TestCase;
+use Inertia\Testing\AssertableInertia as Assert;
 
 class ChirpTest extends TestCase
 {
@@ -46,5 +47,34 @@ class ChirpTest extends TestCase
             'user_id' => $user->id,
             'message' => 'Test Chirp Message'
         ]);
+    }
+
+    public function test_chirps_index_view_receives_chirps()
+    {
+        $user = User::factory()->create();
+
+        $user->chirps()->create([
+            'message' => 'Test chirp message'
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('chirps.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Chirps/Index')
+                ->has('chirps', 1)
+            );
+    }
+
+    public function test_chirps_are_displayed()
+    {
+        $user = User::factory()->create();
+
+        $user->chirps()->create([
+            'message' => 'Test chirp message'
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('chirps.index'))
+            ->assertSee('Test chirp message');
     }
 }
