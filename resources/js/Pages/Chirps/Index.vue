@@ -4,12 +4,20 @@ import Chirp from '@/Components/Chirp.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { useForm, Head } from '@inertiajs/inertia-vue3';
+import { Inertia } from '@inertiajs/inertia';
 
 defineProps(['chirps']);
 
 const form = useForm({
     message: '',
 });
+
+
+Echo.channel('public.chirper')
+    .listen('ChirpCreated', (e) => {
+        Inertia.reload({ only: ['chirps'] })
+    });
+
 </script>
 
 <template>
